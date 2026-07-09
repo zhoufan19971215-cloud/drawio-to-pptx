@@ -16,6 +16,7 @@ from __future__ import annotations
 import argparse
 import base64
 import html
+import os
 import re
 import tempfile
 import urllib.parse
@@ -280,14 +281,27 @@ def add_vertex(slide, cell: ET.Element, box: Box, fix_mojibake: bool) -> None:
 
 
 def add_data_uri_image(slide, data_uri: str, box: Box) -> None:
-    header, encoded = data_uri.split(",", 1)
+    parts = data_uri.split(",", 1)
+    if len(parts) < 2 or not parts[1].strip():
+        return  # skip invalid/incomplete data URI
+    header, encoded = parts
     suffix = ".png"
     if "jpeg" in header or "jpg" in header:
         suffix = ".jpg"
+    try:
+        img_bytes = base64.b64decode(encoded)
+    except Exception:
+        return  # skip undecodable image data
     with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
-        tmp.write(base64.b64decode(encoded))
+        tmp.write(img_bytes)
         temp_path = tmp.name
-    slide.shapes.add_picture(temp_path, px(box.x), px(box.y), width=px(box.w), height=px(box.h))
+    try:
+        slide.shapes.add_picture(temp_path, px(box.x), px(box.y), width=px(box.w), height=px(box.h))
+    finally:
+        try:
+            os.unlink(temp_path)
+        except OSError:
+            pass
 
 
 def edge_points(cell: ET.Element, cells: dict[str, ET.Element], boxes: dict[str, Box]) -> list[Point]:
