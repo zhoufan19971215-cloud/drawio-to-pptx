@@ -3,6 +3,7 @@
 
 import os
 import tempfile
+import traceback
 import uuid
 from pathlib import Path
 
@@ -60,7 +61,9 @@ def convert_file():
             download_name=output_name,
         )
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        tb = traceback.format_exc()
+        print(f"Conversion error:\n{tb}", flush=True)
+        return jsonify({"error": str(e), "detail": tb}), 500
     finally:
         # Cleanup
         try:

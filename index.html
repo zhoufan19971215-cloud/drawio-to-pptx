@@ -980,6 +980,10 @@
           try {
             const errData = await resp.json();
             errMsg = errData.error || errMsg;
+            if (errData.detail) {
+              console.error('Server traceback:', errData.detail);
+              errMsg += '\n' + errData.detail.split('\n').filter(l => l.includes('File') || l.includes('drawio_to_pptx')).join('\n');
+            }
           } catch (_) {}
           throw new Error(errMsg);
         }
