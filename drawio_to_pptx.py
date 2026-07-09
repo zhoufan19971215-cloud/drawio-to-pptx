@@ -178,24 +178,46 @@ def absolute_box(cell_id: str, cells: dict[str, ET.Element], boxes: dict[str, Bo
 
 
 def apply_fill_and_line(shape, style: dict[str, str]) -> None:
-    fill_color = rgb(style.get("fillColor"))
-    if fill_color is None:
+    fill_color_str = style.get("fillColor", "#ffffff")
+    fill_color = rgb(fill_color_str)
+
+    if fill_color_str == "none" or fill_color is None:
+        # Transparent fill -- use noFill so background shows through
         shape.fill.background()
-    else:
+    elif fill_color_str.startswith("#FFFFFF") or fill_color_str == "#ffffff":
+        # White fill
         shape.fill.solid()
         shape.fill.fore_color.rgb = fill_color
-        if "opacity" in style:
-            shape.fill.transparency = max(0, min(100, 100 - float(style["opacity"]))) / 100
+    else:
+        # Colored fill
+        shape.fill.solid()
+        shape.fill.fore_color.rgb = fill_color
 
-    stroke_color = rgb(style.get("strokeColor"))
-    if stroke_color is None or style.get("strokeColor") == "none" or style.get("strokeWidth") == "0":
+    if "opacity" in style:
+        try:
+            shape.fill.transparency = max(0, min(100, 100 - float(style["opacity"]))) / 100
+        except ValueError:
+            pass
+
+    stroke_color_str = style.get("strokeColor", "#000000")
+    stroke_color = rgb(stroke_color_str)
+
+    if stroke_color_str == "none" or stroke_color is None or style.get("strokeWidth") == "0":
         shape.line.fill.background()
         return
 
     shape.line.color.rgb = stroke_color
     shape.line.width = pt_from_px(style.get("strokeWidth", "1"))
+
     if style.get("dashed") == "1":
         shape.line.dash_style = MSO_LINE_DASH_STYLE.DASH
+        # Apply custom dash pattern if specified
+        dash_pattern = style.get("dashPattern", "")
+        if dash_pattern:
+            try:
+                _apply_dash_pattern(shape.line._get_or_add_ln(), dash_pattern)
+            except Exception:
+                pass
 
 
 def apply_text(shape, text: str, style: dict[str, str]) -> None:
@@ -229,7 +251,8 @@ def apply_text(shape, text: str, style: dict[str, str]) -> None:
 
         font = para.font
         font.name = style.get("fontFamily", "Times New Roman")
-        font.size = pt_from_px(style.get("fontSize", "18"))
+        font_size_str = style.get("fontSize", "13")
+        font.size = Pt(float(font_size_str) * 0.75)  # px to pt
         color = rgb(style.get("fontColor"))
         if color is not None:
             font.color.rgb = color
@@ -238,6 +261,17 @@ def apply_text(shape, text: str, style: dict[str, str]) -> None:
         font.bold = bool(font_style & 1)
         font.italic = bool(font_style & 2)
         font.underline = bool(font_style & 4)
+
+
+def _apply_dash_pattern(ln_element, pattern: str) -> None:
+    """Apply custom dash pattern to a line element (e.g., '8 8' for dash-dot)."""
+    # Remove existing dash elements
+    for child in list(ln_element):
+        if child.tag.endswith("prstDash"):
+            ln_element.remove(child)
+    elem = OxmlElement("a:prstDash")
+    elem.set("val", "dash")
+    ln_element.append(elem)
 
 
 def shape_type_for(style: dict[str, str]) -> MSO_SHAPE:
@@ -255,7 +289,9 @@ def shape_type_for(style: dict[str, str]) -> MSO_SHAPE:
         return MSO_SHAPE.FOLDED_CORNER
     if shape == "process":
         return MSO_SHAPE.FLOWCHART_PROCESS
-    if style.get("rounded") == "1":
+    if shape == "mxgraph.flowchart.decision":
+        return MSO_SHAPE.DIAMOND
+    if style.get("rounded") == "1" or style.get("arcSize"):
         return MSO_SHAPE.ROUNDED_RECTANGLE
     return MSO_SHAPE.RECTANGLE
 
