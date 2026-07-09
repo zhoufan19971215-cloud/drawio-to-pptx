@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+*.pyo
+.env
+.venv
+venv/
+test-output.pptx
+test-sample.drawio
+.DS_Store
+Thumbs.db

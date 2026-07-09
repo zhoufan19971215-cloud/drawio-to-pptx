@@ -1,0 +1,1013 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Drawio to PPTX 在线转换工具</title>
+  <style>
+    :root {
+      --bg: #0f1117;
+      --card: #1a1d27;
+      --card-border: #2a2d3a;
+      --accent: #6366f1;
+      --accent-hover: #818cf8;
+      --accent-glow: rgba(99, 102, 241, 0.25);
+      --success: #22c55e;
+      --error: #ef4444;
+      --warning: #f59e0b;
+      --text: #e2e8f0;
+      --text-dim: #94a3b8;
+      --text-muted: #64748b;
+      --radius: 16px;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    /* Header */
+    .header {
+      width: 100%;
+      max-width: 720px;
+      padding: 48px 24px 0;
+      text-align: center;
+    }
+
+    .logo {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+
+    .logo-icon {
+      width: 40px;
+      height: 40px;
+      background: linear-gradient(135deg, var(--accent), #a855f7);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      font-weight: 700;
+      color: #fff;
+    }
+
+    .logo-text {
+      font-size: 20px;
+      font-weight: 700;
+      background: linear-gradient(135deg, var(--accent), #a855f7);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .header h1 {
+      font-size: 28px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      margin-bottom: 8px;
+    }
+
+    .header p {
+      color: var(--text-dim);
+      font-size: 15px;
+      line-height: 1.6;
+    }
+
+    /* Main */
+    .main {
+      width: 100%;
+      max-width: 720px;
+      padding: 32px 24px 64px;
+    }
+
+    /* Upload Zone */
+    .upload-zone {
+      position: relative;
+      border: 2px dashed var(--card-border);
+      border-radius: var(--radius);
+      padding: 48px 24px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      background: var(--card);
+      overflow: hidden;
+    }
+
+    .upload-zone::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(circle at center, var(--accent-glow), transparent 70%);
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+
+    .upload-zone:hover,
+    .upload-zone.drag-over {
+      border-color: var(--accent);
+      transform: translateY(-2px);
+    }
+
+    .upload-zone:hover::before,
+    .upload-zone.drag-over::before {
+      opacity: 1;
+    }
+
+    .upload-zone.has-file {
+      border-color: var(--success);
+      border-style: solid;
+      padding: 24px;
+    }
+
+    .upload-icon {
+      position: relative;
+      width: 64px;
+      height: 64px;
+      margin: 0 auto 16px;
+      background: rgba(99, 102, 241, 0.1);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .upload-icon svg {
+      width: 28px;
+      height: 28px;
+      stroke: var(--accent);
+      fill: none;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    .upload-title {
+      position: relative;
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 6px;
+    }
+
+    .upload-subtitle {
+      position: relative;
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+
+    .upload-subtitle span {
+      color: var(--accent);
+      text-decoration: underline;
+      cursor: pointer;
+    }
+
+    #fileInput { display: none; }
+
+    /* File Info */
+    .file-info {
+      display: none;
+      align-items: center;
+      gap: 14px;
+      position: relative;
+    }
+
+    .file-info.visible { display: flex; }
+
+    .file-icon-box {
+      width: 48px;
+      height: 48px;
+      border-radius: 12px;
+      background: rgba(99, 102, 241, 0.1);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .file-icon-box svg {
+      width: 24px;
+      height: 24px;
+      stroke: var(--accent);
+      fill: none;
+      stroke-width: 2;
+    }
+
+    .file-details {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .file-name {
+      font-size: 14px;
+      font-weight: 600;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .file-meta {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    .file-remove {
+      width: 32px;
+      height: 32px;
+      border: none;
+      background: rgba(239, 68, 68, 0.1);
+      border-radius: 8px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.2s;
+      flex-shrink: 0;
+    }
+
+    .file-remove:hover {
+      background: rgba(239, 68, 68, 0.2);
+    }
+
+    .file-remove svg {
+      width: 16px;
+      height: 16px;
+      stroke: var(--error);
+      fill: none;
+      stroke-width: 2;
+    }
+
+    /* Preview */
+    .preview-section {
+      display: none;
+      margin-top: 24px;
+    }
+
+    .preview-section.visible { display: block; }
+
+    .preview-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+
+    .preview-label {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .preview-stats {
+      display: flex;
+      gap: 16px;
+    }
+
+    .stat {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .stat strong {
+      color: var(--text-dim);
+    }
+
+    .preview-canvas-wrap {
+      background: #fff;
+      border-radius: 12px;
+      overflow: hidden;
+      max-height: 400px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    #previewCanvas {
+      max-width: 100%;
+      max-height: 400px;
+    }
+
+    /* Status badge */
+    .status-badge {
+      display: none;
+      align-items: center;
+      gap: 6px;
+      margin-top: 16px;
+      padding: 10px 16px;
+      border-radius: 10px;
+      font-size: 13px;
+    }
+
+    .status-badge.visible { display: flex; }
+
+    .status-badge.loading {
+      background: rgba(99, 102, 241, 0.1);
+      border: 1px solid rgba(99, 102, 241, 0.2);
+      color: var(--accent-hover);
+    }
+
+    .status-badge.error {
+      background: rgba(239, 68, 68, 0.1);
+      border: 1px solid rgba(239, 68, 68, 0.2);
+      color: var(--error);
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .status-badge.loading .status-dot {
+      background: var(--accent);
+      animation: pulse 1s ease-in-out infinite;
+    }
+
+    .status-badge.error .status-dot {
+      background: var(--error);
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.3; }
+    }
+
+    /* Export Button */
+    .export-section {
+      margin-top: 24px;
+    }
+
+    .export-btn {
+      width: 100%;
+      padding: 16px 32px;
+      font-size: 16px;
+      font-weight: 700;
+      color: #fff;
+      background: linear-gradient(135deg, var(--accent), #a855f7);
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: all 0.3s;
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+    }
+
+    .export-btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+      transform: none !important;
+    }
+
+    .export-btn:not(:disabled):hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 30px var(--accent-glow);
+    }
+
+    .export-btn svg {
+      width: 20px;
+      height: 20px;
+      stroke: currentColor;
+      fill: none;
+      stroke-width: 2;
+    }
+
+    .spinner {
+      width: 20px;
+      height: 20px;
+      border: 2.5px solid rgba(255,255,255,0.3);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.6s linear infinite;
+      display: none;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* Toast */
+    .toast {
+      position: fixed;
+      bottom: 32px;
+      left: 50%;
+      transform: translateX(-50%) translateY(100px);
+      padding: 12px 24px;
+      border-radius: 10px;
+      font-size: 14px;
+      font-weight: 500;
+      z-index: 1000;
+      transition: transform 0.3s ease;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .toast.show {
+      transform: translateX(-50%) translateY(0);
+    }
+
+    .toast.success {
+      background: rgba(34, 197, 94, 0.15);
+      border: 1px solid rgba(34, 197, 94, 0.3);
+      color: var(--success);
+    }
+
+    .toast.error {
+      background: rgba(239, 68, 68, 0.15);
+      border: 1px solid rgba(239, 68, 68, 0.3);
+      color: var(--error);
+    }
+
+    /* Footer */
+    .footer {
+      padding: 0 24px 32px;
+      text-align: center;
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    @media (max-width: 640px) {
+      .header h1 { font-size: 22px; }
+      .upload-zone { padding: 32px 16px; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="header">
+    <div class="logo">
+      <div class="logo-icon">D</div>
+      <span class="logo-text">Drawio to PPTX</span>
+    </div>
+    <h1>.drawio 转 PPTX 在线转换</h1>
+    <p>上传 .drawio 文件，一键导出为可编辑的 PowerPoint 演示文稿。</p>
+  </div>
+
+  <div class="main">
+    <!-- Upload Zone -->
+    <div class="upload-zone" id="uploadZone">
+      <div id="uploadPlaceholder">
+        <div class="upload-icon">
+          <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        </div>
+        <div class="upload-title">拖拽 .drawio 文件到此处</div>
+        <div class="upload-subtitle">或 <span id="browseBtn">点击浏览文件</span></div>
+      </div>
+      <div class="file-info" id="fileInfo">
+        <div class="file-icon-box">
+          <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+        </div>
+        <div class="file-details">
+          <div class="file-name" id="fileName">-</div>
+          <div class="file-meta" id="fileMeta">-</div>
+        </div>
+        <button class="file-remove" id="removeBtn" title="移除文件">
+          <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+    </div>
+    <input type="file" id="fileInput" accept=".drawio,.dio,.xml">
+
+    <!-- Preview -->
+    <div class="preview-section" id="previewSection">
+      <div class="preview-header">
+        <span class="preview-label">预览</span>
+        <div class="preview-stats" id="previewStats"></div>
+      </div>
+      <div class="preview-canvas-wrap">
+        <canvas id="previewCanvas"></canvas>
+      </div>
+    </div>
+
+    <!-- Status -->
+    <div class="status-badge" id="statusBadge">
+      <div class="status-dot"></div>
+      <span id="statusText"></span>
+    </div>
+
+    <!-- Export -->
+    <div class="export-section">
+      <button class="export-btn" id="exportBtn" disabled>
+        <svg viewBox="0 0 24 24" class="export-icon"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        <span class="export-text">导出为 PPTX</span>
+        <div class="spinner" id="spinner"></div>
+      </button>
+    </div>
+  </div>
+
+  <div class="footer">
+    后端使用 python-pptx 生成可编辑的原生 PowerPoint 文件
+  </div>
+
+  <!-- Toast -->
+  <div class="toast" id="toast"></div>
+
+  <script>
+    // ===== Config =====
+    const API_BASE = window.location.origin;  // same origin as the Flask server
+
+    // ===== State =====
+    let currentFile = null;
+    let parsedData = null;
+
+    const uploadZone = document.getElementById('uploadZone');
+    const fileInput = document.getElementById('fileInput');
+    const browseBtn = document.getElementById('browseBtn');
+    const removeBtn = document.getElementById('removeBtn');
+    const exportBtn = document.getElementById('exportBtn');
+    const spinner = document.getElementById('spinner');
+    const exportText = document.querySelector('.export-text');
+    const exportIcon = document.querySelector('.export-icon');
+    const previewSection = document.getElementById('previewSection');
+    const previewCanvas = document.getElementById('previewCanvas');
+    const statusBadge = document.getElementById('statusBadge');
+    const statusText = document.getElementById('statusText');
+    const toastEl = document.getElementById('toast');
+
+    // ===== Toast =====
+    let toastTimeout;
+    function showToast(msg, type = 'success') {
+      toastEl.className = `toast ${type}`;
+      toastEl.innerHTML = msg;
+      clearTimeout(toastTimeout);
+      requestAnimationFrame(() => {
+        toastEl.classList.add('show');
+        toastTimeout = setTimeout(() => toastEl.classList.remove('show'), 3000);
+      });
+    }
+
+    // ===== Status Badge =====
+    function setStatus(text, type) {
+      statusText.textContent = text;
+      statusBadge.className = `status-badge visible ${type}`;
+    }
+    function hideStatus() {
+      statusBadge.className = 'status-badge';
+    }
+
+    // ===== File Upload =====
+    browseBtn.addEventListener('click', (e) => { e.stopPropagation(); fileInput.click(); });
+    uploadZone.addEventListener('click', () => { if (!currentFile) fileInput.click(); });
+
+    uploadZone.addEventListener('dragover', (e) => { e.preventDefault(); uploadZone.classList.add('drag-over'); });
+    uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('drag-over'));
+    uploadZone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      uploadZone.classList.remove('drag-over');
+      const file = e.dataTransfer.files[0];
+      if (file) handleFile(file);
+    });
+
+    fileInput.addEventListener('change', () => {
+      if (fileInput.files[0]) handleFile(fileInput.files[0]);
+    });
+
+    removeBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      resetUpload();
+    });
+
+    function resetUpload() {
+      currentFile = null;
+      parsedData = null;
+      fileInput.value = '';
+      document.getElementById('uploadPlaceholder').style.display = '';
+      document.getElementById('fileInfo').classList.remove('visible');
+      uploadZone.classList.remove('has-file');
+      previewSection.classList.remove('visible');
+      exportBtn.disabled = true;
+      hideStatus();
+    }
+
+    function formatSize(bytes) {
+      if (bytes < 1024) return bytes + ' B';
+      if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+      return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+    }
+
+    function handleFile(file) {
+      const ext = file.name.split('.').pop().toLowerCase();
+      if (!['drawio', 'dio', 'xml'].includes(ext)) {
+        showToast('仅支持 .drawio / .dio / .xml 文件', 'error');
+        return;
+      }
+
+      currentFile = file;
+      document.getElementById('uploadPlaceholder').style.display = 'none';
+      document.getElementById('fileInfo').classList.add('visible');
+      uploadZone.classList.add('has-file');
+      document.getElementById('fileName').textContent = file.name;
+      document.getElementById('fileMeta').textContent = formatSize(file.size);
+
+      // Read file for preview (client-side parsing)
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          parsedData = parseDrawio(e.target.result);
+          renderPreview();
+          exportBtn.disabled = false;
+          showToast(`解析成功，共 ${parsedData.pages.length} 页`);
+        } catch (err) {
+          console.error(err);
+          // Still allow export even if preview parsing fails (backend handles it)
+          previewSection.classList.remove('visible');
+          exportBtn.disabled = false;
+          showToast('预览解析失败，但可以导出', 'error');
+        }
+      };
+      reader.readAsText(file);
+    }
+
+    // ===== Parse .drawio XML (lightweight, for preview only) =====
+    function parseDrawio(xmlStr) {
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(xmlStr, 'text/xml');
+
+      const pages = [];
+      const diagrams = doc.querySelectorAll('diagram');
+
+      if (diagrams.length === 0) {
+        pages.push(parsePage(doc));
+      } else {
+        diagrams.forEach((diagram, i) => {
+          try {
+            const pageData = parseDiagram(diagram, i);
+            if (pageData) pages.push(pageData);
+          } catch (e) {
+            console.warn(`Page ${i} parse error:`, e);
+          }
+        });
+      }
+
+      return { pages };
+    }
+
+    function parsePage(doc) {
+      const model = doc.querySelector('mxGraphModel');
+      if (!model) return { name: 'Page 1', cells: [], width: 800, height: 600, background: '#ffffff' };
+
+      const root = model.querySelector('root');
+      const cells = [];
+      let pageWidth = 800, pageHeight = 600;
+
+      if (model.getAttribute('pageWidth')) pageWidth = parseInt(model.getAttribute('pageWidth')) || 800;
+      if (model.getAttribute('pageHeight')) pageHeight = parseInt(model.getAttribute('pageHeight')) || 600;
+
+      if (root) {
+        root.querySelectorAll('mxCell').forEach(cell => {
+          const parsed = parseCell(cell);
+          if (parsed) cells.push(parsed);
+        });
+      }
+
+      const bg = model.getAttribute('background') || '#ffffff';
+
+      return { name: 'Page 1', cells, width: pageWidth, height: pageHeight, background: bg };
+    }
+
+    function parseDiagram(diagram, index) {
+      const name = diagram.getAttribute('name') || diagram.getAttribute('id') || `Page ${index + 1}`;
+      const mxGraphModel = diagram.querySelector('mxGraphModel') || diagram.querySelector('mxGraph');
+      if (!mxGraphModel) return null;
+
+      const root = mxGraphModel.querySelector('root');
+      const cells = [];
+      let pageWidth = 800, pageHeight = 600;
+
+      if (mxGraphModel.getAttribute('pageWidth')) pageWidth = parseInt(mxGraphModel.getAttribute('pageWidth')) || 800;
+      if (mxGraphModel.getAttribute('pageHeight')) pageHeight = parseInt(mxGraphModel.getAttribute('pageHeight')) || 600;
+
+      if (root) {
+        root.querySelectorAll('mxCell').forEach(cell => {
+          const parsed = parseCell(cell);
+          if (parsed) cells.push(parsed);
+        });
+      }
+
+      const bg = mxGraphModel.getAttribute('background') || '#ffffff';
+
+      return { name, cells, width: pageWidth, height: pageHeight, background: bg };
+    }
+
+    function parseCell(cell) {
+      const id = cell.getAttribute('id');
+      const value = cell.getAttribute('value') || '';
+      const style = cell.getAttribute('style') || '';
+      const vertex = cell.getAttribute('vertex');
+      const edge = cell.getAttribute('edge');
+
+      if (cell.getAttribute('parent') === '1' && !vertex && !edge) return null;
+      if (id === '0' || id === '1') return null;
+      if (!value && !vertex && !edge) return null;
+
+      const geo = cell.querySelector('mxGeometry');
+      let x = 0, y = 0, w = 100, h = 40;
+      let points = [];
+
+      if (geo) {
+        x = parseFloat(geo.getAttribute('x')) || 0;
+        y = parseFloat(geo.getAttribute('y')) || 0;
+        w = parseFloat(geo.getAttribute('width')) || 100;
+        h = parseFloat(geo.getAttribute('height')) || 40;
+
+        const arrayEl = geo.querySelector('Array');
+        if (arrayEl) {
+          arrayEl.querySelectorAll('mxPoint').forEach(pt => {
+            points.push({
+              x: parseFloat(pt.getAttribute('x')) || 0,
+              y: parseFloat(pt.getAttribute('y')) || 0
+            });
+          });
+        }
+      }
+
+      return {
+        id, value, style, vertex: vertex === '1', edge: edge === '1',
+        x, y, width: w, height: h, points
+      };
+    }
+
+    // ===== Preview =====
+    function renderPreview() {
+      if (!parsedData || parsedData.pages.length === 0) return;
+
+      previewSection.classList.add('visible');
+
+      const page = parsedData.pages[0];
+      const stats = document.getElementById('previewStats');
+      stats.innerHTML = `
+        <span class="stat">页面: <strong>${parsedData.pages.length}</strong></span>
+        <span class="stat">元素: <strong>${page.cells.length}</strong></span>
+        <span class="stat">尺寸: <strong>${page.width} x ${page.height}</strong></span>
+      `;
+
+      const canvas = previewCanvas;
+      const scale = Math.min(680 / page.width, 400 / page.height, 1);
+      canvas.width = page.width * scale;
+      canvas.height = page.height * scale;
+      const ctx = canvas.getContext('2d');
+
+      ctx.fillStyle = page.background;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      ctx.save();
+      ctx.scale(scale, scale);
+      renderCells(ctx, page.cells);
+      ctx.restore();
+    }
+
+    function renderCells(ctx, cells) {
+      const edges = cells.filter(c => c.edge);
+      const vertices = cells.filter(c => c.vertex);
+      edges.forEach(cell => renderEdge(ctx, cell));
+      vertices.forEach(cell => renderVertex(ctx, cell));
+    }
+
+    function getStyleProps(style) {
+      const props = {};
+      style.split(';').forEach(s => {
+        const [k, v] = s.split('=');
+        if (k && v) props[k.trim()] = v.trim();
+      });
+      return props;
+    }
+
+    function decodeHtml(html) {
+      const txt = document.createElement('textarea');
+      txt.innerHTML = html;
+      return txt.value;
+    }
+
+    function renderVertex(ctx, cell) {
+      const props = getStyleProps(cell.style);
+      const fillColor = props.fillColor || props['fill'] || '#ffffff';
+      const strokeColor = props.strokeColor || props['stroke'] || '#000000';
+      const strokeWidth = parseFloat(props.strokeWidth) || 1;
+      const fontSize = parseInt(props.fontSize) || 12;
+      const fontColor = props.fontColor || '#000000';
+      const fontFamily = props.fontFamily || 'Helvetica';
+      const rounded = props.rounded === '1' || props.arcSize ? true : false;
+      const shape = props.shape || '';
+
+      const { x, y, width: w, height: h, value } = cell;
+
+      if (props.shadow === '1') {
+        ctx.save();
+        ctx.shadowColor = 'rgba(0,0,0,0.2)';
+        ctx.shadowBlur = 6;
+        ctx.shadowOffsetX = 2;
+        ctx.shadowOffsetY = 2;
+      }
+
+      ctx.fillStyle = fillColor;
+      ctx.strokeStyle = strokeColor;
+      ctx.lineWidth = strokeWidth;
+
+      if (rounded) {
+        const r = parseFloat(props.arcSize) || 10;
+        roundRect(ctx, x, y, w, h, Math.min(r, w / 2, h / 2));
+        ctx.fill();
+        if (strokeWidth > 0) ctx.stroke();
+      } else if (shape === 'ellipse') {
+        ctx.beginPath();
+        ctx.ellipse(x + w / 2, y + h / 2, w / 2, h / 2, 0, 0, Math.PI * 2);
+        ctx.fill();
+        if (strokeWidth > 0) ctx.stroke();
+      } else if (shape === 'rhombus') {
+        ctx.beginPath();
+        ctx.moveTo(x + w / 2, y);
+        ctx.lineTo(x + w, y + h / 2);
+        ctx.lineTo(x + w / 2, y + h);
+        ctx.lineTo(x, y + h / 2);
+        ctx.closePath();
+        ctx.fill();
+        if (strokeWidth > 0) ctx.stroke();
+      } else {
+        ctx.fillRect(x, y, w, h);
+        if (strokeWidth > 0) ctx.strokeRect(x, y, w, h);
+      }
+
+      if (props.shadow === '1') ctx.restore();
+
+      if (value) {
+        const text = decodeHtml(value);
+        ctx.fillStyle = fontColor;
+        ctx.font = `${fontSize}px ${fontFamily}`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+
+        const lines = wrapText(ctx, text, w - 10);
+        const lineHeight = fontSize * 1.3;
+        const startY = y + (h - lines.length * lineHeight) / 2 + lineHeight / 2;
+        lines.forEach((line, i) => {
+          ctx.fillText(line, x + w / 2, startY + i * lineHeight);
+        });
+      }
+    }
+
+    function renderEdge(ctx, cell) {
+      const props = getStyleProps(cell.style);
+      const strokeColor = props.strokeColor || '#000000';
+      const strokeWidth = parseFloat(props.strokeWidth) || 1;
+
+      const { points, value } = cell;
+      if (points.length < 2) return;
+
+      ctx.strokeStyle = strokeColor;
+      ctx.lineWidth = strokeWidth;
+      ctx.beginPath();
+
+      ctx.moveTo(points[0].x, points[0].y);
+      for (let i = 1; i < points.length; i++) {
+        ctx.lineTo(points[i].x, points[i].y);
+      }
+      ctx.stroke();
+
+      if (props.endArrow !== 'none') {
+        drawArrow(ctx, points[points.length - 2], points[points.length - 1], strokeColor);
+      }
+      if (props.startArrow && props.startArrow !== 'none') {
+        drawArrow(ctx, points[1], points[0], strokeColor, true);
+      }
+
+      if (value && points.length >= 2) {
+        const midIdx = Math.floor(points.length / 2);
+        const mx = (points[midIdx - 1].x + points[midIdx].x) / 2;
+        const my = (points[midIdx - 1].y + points[midIdx].y) / 2;
+        const fontSize = parseInt(props.fontSize) || 11;
+        ctx.fillStyle = props.fontColor || '#000000';
+        ctx.font = `${fontSize}px ${props.fontFamily || 'Helvetica'}`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(decodeHtml(value), mx, my - fontSize);
+      }
+    }
+
+    function drawArrow(ctx, from, to, color, reverse = false) {
+      const dx = to.x - from.x;
+      const dy = to.y - from.y;
+      const angle = Math.atan2(dy, dx);
+      const size = 8;
+
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      if (reverse) {
+        ctx.moveTo(from.x + Math.cos(angle) * size, from.y + Math.sin(angle) * size);
+        ctx.lineTo(from.x + Math.cos(angle + Math.PI / 6) * size * 0.6, from.y + Math.sin(angle + Math.PI / 6) * size * 0.6);
+        ctx.lineTo(from.x + Math.cos(angle - Math.PI / 6) * size * 0.6, from.y + Math.sin(angle - Math.PI / 6) * size * 0.6);
+      } else {
+        ctx.moveTo(to.x, to.y);
+        ctx.lineTo(to.x - Math.cos(angle - Math.PI / 6) * size, to.y - Math.sin(angle - Math.PI / 6) * size);
+        ctx.lineTo(to.x - Math.cos(angle + Math.PI / 6) * size, to.y - Math.sin(angle + Math.PI / 6) * size);
+      }
+      ctx.closePath();
+      ctx.fill();
+    }
+
+    function roundRect(ctx, x, y, w, h, r) {
+      ctx.beginPath();
+      ctx.moveTo(x + r, y);
+      ctx.lineTo(x + w - r, y);
+      ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+      ctx.lineTo(x + w, y + h - r);
+      ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+      ctx.lineTo(x + r, y + h);
+      ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+      ctx.lineTo(x, y + r);
+      ctx.quadraticCurveTo(x, y, x + r, y);
+      ctx.closePath();
+    }
+
+    function wrapText(ctx, text, maxWidth) {
+      const paragraphs = text.split(/<br\s*\/?>/i);
+      const lines = [];
+      paragraphs.forEach(para => {
+        const plain = decodeHtml(para);
+        if (!plain) { lines.push(''); return; }
+        const words = plain.split(/\s+/);
+        let line = '';
+        for (const word of words) {
+          const test = line ? line + ' ' + word : word;
+          if (ctx.measureText(test).width > maxWidth && line) {
+            lines.push(line);
+            line = word;
+          } else {
+            line = test;
+          }
+        }
+        lines.push(line);
+      });
+      return lines;
+    }
+
+    // ===== Export PPTX via Backend API =====
+    exportBtn.addEventListener('click', async () => {
+      if (!currentFile) return;
+
+      // UI state: loading
+      exportBtn.disabled = true;
+      spinner.style.display = 'block';
+      exportText.textContent = '正在转换...';
+      exportIcon.style.display = 'none';
+      setStatus('正在上传文件到服务器并转换...', 'loading');
+
+      try {
+        const formData = new FormData();
+        formData.append('file', currentFile);
+
+        const resp = await fetch(`${API_BASE}/api/convert`, {
+          method: 'POST',
+          body: formData,
+        });
+
+        if (!resp.ok) {
+          let errMsg = `服务器错误 (${resp.status})`;
+          try {
+            const errData = await resp.json();
+            errMsg = errData.error || errMsg;
+          } catch (_) {}
+          throw new Error(errMsg);
+        }
+
+        // Download the file
+        const blob = await resp.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = currentFile.name.replace(/\.(drawio|dio|xml)$/i, '') + '.pptx';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
+        showToast('导出成功! PPTX 文件已下载');
+        hideStatus();
+      } catch (err) {
+        console.error(err);
+        showToast('导出失败: ' + err.message, 'error');
+        setStatus('转换失败: ' + err.message, 'error');
+      } finally {
+        exportBtn.disabled = false;
+        spinner.style.display = 'none';
+        exportText.textContent = '导出为 PPTX';
+        exportIcon.style.display = '';
+      }
+    });
+  </script>
+</body>
+</html>
