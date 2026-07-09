@@ -308,10 +308,14 @@ def edge_points(cell: ET.Element, cells: dict[str, ET.Element], boxes: dict[str,
     geom = cell.find("mxGeometry")
     points: list[Point] = []
 
+    has_source_point = False
+    has_target_point = False
+
     if geom is not None:
         source = geom.find("mxPoint[@as='sourcePoint']")
         if source is not None:
             points.append(Point(float(source.get("x") or 0), float(source.get("y") or 0)))
+            has_source_point = True
 
         array = geom.find("Array[@as='points']")
         if array is not None:
@@ -321,15 +325,51 @@ def edge_points(cell: ET.Element, cells: dict[str, ET.Element], boxes: dict[str,
         target = geom.find("mxPoint[@as='targetPoint']")
         if target is not None:
             points.append(Point(float(target.get("x") or 0), float(target.get("y") or 0)))
+            has_target_point = True
 
-    if len(points) < 2:
-        for attr in ("source", "target"):
-            ref = cell.get(attr)
-            if ref and ref in boxes:
-                box = absolute_box(ref, cells, boxes)
-                points.append(Point(box.x + box.w / 2, box.y + box.h / 2))
+    # If no explicit source/target points, compute edge attachment from node geometry
+    source_ref = cell.get("source")
+    target_ref = cell.get("target")
+
+    if not has_source_point and source_ref and source_ref in boxes:
+        box = absolute_box(source_ref, cells, boxes)
+        cx, cy = box.x + box.w / 2, box.y + box.h / 2
+        if points:
+            # Attach to the box edge closest to the first waypoint
+            fx, fy = points[0].x, points[0].y
+            points.insert(0, Point(_edge_attachment_x(box, cx, fx), _edge_attachment_y(box, cy, fy)))
+        else:
+            points.append(Point(cx, cy))
+
+    if not has_target_point and target_ref and target_ref in boxes:
+        box = absolute_box(target_ref, cells, boxes)
+        cx, cy = box.x + box.w / 2, box.y + box.h / 2
+        if points:
+            # Attach to the box edge closest to the last waypoint
+            lx, ly = points[-1].x, points[-1].y
+            points.append(Point(_edge_attachment_x(box, cx, lx), _edge_attachment_y(box, cy, ly)))
+        else:
+            points.append(Point(cx, cy))
 
     return points
+
+
+def _edge_attachment_x(box: Box, cx: float, target_x: float) -> float:
+    """Return x coord on box edge closest to target_x."""
+    if target_x < box.x:
+        return box.x
+    if target_x > box.x + box.w:
+        return box.x + box.w
+    return cx  # vertically aligned, use center
+
+
+def _edge_attachment_y(box: Box, cy: float, target_y: float) -> float:
+    """Return y coord on box edge closest to target_y."""
+    if target_y < box.y:
+        return box.y
+    if target_y > box.y + box.h:
+        return box.y + box.h
+    return cy  # horizontally aligned, use center
 
 
 def set_line_arrow(connector, at_end: bool = True) -> None:
