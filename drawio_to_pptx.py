@@ -228,7 +228,7 @@ def apply_text(shape, text: str, style: dict[str, str]) -> None:
         }.get(style.get("align", "center"), PP_ALIGN.CENTER)
 
         font = para.font
-        font.name = style.get("fontFamily", "Microsoft YaHei")
+        font.name = style.get("fontFamily", "Times New Roman")
         font.size = pt_from_px(style.get("fontSize", "18"))
         color = rgb(style.get("fontColor"))
         if color is not None:
@@ -372,17 +372,26 @@ def _edge_attachment_y(box: Box, cy: float, target_y: float) -> float:
     return cy  # horizontally aligned, use center
 
 
-def set_line_arrow(connector, at_end: bool = True) -> None:
-    ln = connector.line._get_or_add_ln()
+def set_line_arrow(ln_element, at_end: bool = True, direction: str = "right") -> None:
+    """Set arrow on a line, with direction-aware type selection."""
     tag = "a:tailEnd" if not at_end else "a:headEnd"
-    for existing in list(ln):
+    for existing in list(ln_element):
         if existing.tag.endswith(tag.split(":", 1)[1]):
-            ln.remove(existing)
+            ln_element.remove(existing)
     arrow = OxmlElement(tag)
     arrow.set("type", "triangle")
     arrow.set("w", "med")
     arrow.set("len", "med")
-    ln.append(arrow)
+    ln_element.append(arrow)
+
+
+def _arrow_direction(start: Point, end: Point) -> str:
+    """Determine the primary direction from start to end point."""
+    dx = end.x - start.x
+    dy = end.y - start.y
+    if abs(dx) > abs(dy):
+        return "right" if dx > 0 else "left"
+    return "down" if dy > 0 else "up"
 
 
 def add_edge(slide, cell: ET.Element, cells: dict[str, ET.Element], boxes: dict[str, Box]) -> None:
@@ -394,23 +403,47 @@ def add_edge(slide, cell: ET.Element, cells: dict[str, ET.Element], boxes: dict[
     color = rgb(style.get("strokeColor")) or RGBColor(0, 0, 0)
     width = pt_from_px(style.get("strokeWidth", "1"))
     dashed = style.get("dashed") == "1"
+    has_end_arrow = style.get("endArrow", "none") != "none"
+    has_start_arrow = style.get("startArrow", "none") != "none"
+    edge_label = clean_text(cell.get("value"), False)
 
+    # Draw each segment as a straight connector
+    last_idx = len(points) - 2
     for idx, (start, end) in enumerate(zip(points, points[1:])):
         connector = slide.shapes.add_connector(
             MSO_CONNECTOR.STRAIGHT,
-            px(start.x),
-            px(start.y),
-            px(end.x),
-            px(end.y),
+            px(start.x), px(start.y),
+            px(end.x), px(end.y),
         )
         connector.line.color.rgb = color
         connector.line.width = width
         if dashed:
             connector.line.dash_style = MSO_LINE_DASH_STYLE.DASH
-        if idx == len(points) - 2 and style.get("endArrow", "none") != "none":
-            set_line_arrow(connector, at_end=True)
-        if idx == 0 and style.get("startArrow", "none") != "none":
-            set_line_arrow(connector, at_end=False)
+
+        # Arrow only on the last segment (pointing at target)
+        is_last = idx == last_idx
+        is_first = idx == 0
+        if is_last and has_end_arrow:
+            ln = connector.line._get_or_add_ln()
+            set_line_arrow(ln, at_end=True)
+        # No arrow on middle segments
+        if is_first and has_start_arrow:
+            ln = connector.line._get_or_add_ln()
+            set_line_arrow(ln, at_end=False)
+
+    # Place edge label at the midpoint of the last segment
+    if edge_label and len(points) >= 2:
+        sx, sy = points[-2].x, points[-2].y
+        ex, ey = points[-1].x, points[-1].y
+        mx, my = (sx + ex) / 2, (sy + ey) / 2
+        txBox = slide.shapes.add_textbox(px(mx - 30), px(my - 20), px(60), px(25))
+        tf = txBox.text_frame
+        tf.word_wrap = False
+        p = tf.paragraphs[0]
+        p.text = edge_label
+        p.alignment = PP_ALIGN.CENTER
+        p.font.size = Pt(10)
+        p.font.color.rgb = rgb(style.get("fontColor")) or RGBColor(0x33, 0x33, 0x33)
 
 
 def page_size(model: ET.Element) -> tuple[float, float]:
