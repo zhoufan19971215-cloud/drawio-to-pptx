@@ -488,6 +488,28 @@ def page_size(model: ET.Element) -> tuple[float, float]:
     return width, height
 
 
+def content_bounds(model: ET.Element) -> tuple[float, float]:
+    """Scan all cells to find the actual content bounding box."""
+    max_x = float(model.get("pageWidth") or 1280)
+    max_y = float(model.get("pageHeight") or 720)
+    for cell in model.findall(".//mxCell"):
+        geom = cell.find("mxGeometry")
+        if geom is None:
+            continue
+        x = float(geom.get("x") or 0)
+        y = float(geom.get("y") or 0)
+        w = float(geom.get("width") or 0)
+        h = float(geom.get("height") or 0)
+        right = x + w
+        bottom = y + h
+        if right > max_x:
+            max_x = right
+        if bottom > max_y:
+            max_y = bottom
+    # Add padding
+    return max_x + 50, max_y + 50
+
+
 def iter_cells_in_draw_order(model: ET.Element) -> Iterable[ET.Element]:
     root = model.find("root")
     return root.findall("mxCell") if root is not None else model.findall(".//mxCell")
@@ -496,8 +518,6 @@ def iter_cells_in_draw_order(model: ET.Element) -> Iterable[ET.Element]:
 def convert(drawio_path: Path, pptx_path: Path, fix_mojibake: bool = True) -> None:
     pages = load_pages(drawio_path)
     pres = Presentation()
-    pres.slide_width = px(page_size(pages[0][1])[0])
-    pres.slide_height = px(page_size(pages[0][1])[1])
     blank = pres.slide_layouts[6]
 
     # Remove the starter slide that some template versions provide.
@@ -507,7 +527,8 @@ def convert(drawio_path: Path, pptx_path: Path, fix_mojibake: bool = True) -> No
         del pres.slides._sldIdLst[0]
 
     for _, model in pages:
-        width, height = page_size(model)
+        # Use actual content bounds, not just pageWidth/pageHeight
+        width, height = content_bounds(model)
         pres.slide_width = px(width)
         pres.slide_height = px(height)
         slide = pres.slides.add_slide(blank)
